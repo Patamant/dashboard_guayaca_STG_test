@@ -276,14 +276,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
       <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--pur)"></div><div><div class="ct">Recargas por Hora</div><div class="cs">Distribución 0–23h</div></div></div></div><div class="cw tall"><canvas id="cHoras"></canvas></div></div>
     </section>
     <section class="cg1">
-      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--red)"></div><div><div class="ct">Recargas por Troncal</div><div class="cs">Total transacciones — col A</div></div></div></div><div class="cw tall"><canvas id="cTroncal"></canvas></div></div>
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--red)"></div><div><div class="ct">Recargas por Troncal</div><div class="cs">Total transacciones </div></div></div></div><div class="cw tall"><canvas id="cTroncal"></canvas></div></div>
     </section>
   </div>
 
   <!-- ══ S2: TRANSACCIONALIDAD Y USOS ══ -->
   <div id="s2" class="tab-section">
     <div class="sec-header">
-      <div class="sec-header-txt"><h2>Transaccionalidad y Usos</h2><p>Indicadores de uso de tarjetas — Hoja USOS</p></div>
+      <div class="sec-header-txt"><h2>Transaccionalidad y Usos</h2><p>Indicadores de uso de tarjetas La GUayaca Financiera</p></div>
       <div class="period-badge" id="badge2">📊 Totalidad</div>
     </div>
 
@@ -437,7 +437,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 </main>
 
 <script>
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyn__8QoazCkGohRhiroOpgx4gQ3D54_vmCfzRkXl3KB-nr8T59zc5DRZBVrt_5ZdVjrA/exec";
+const APPS_SCRIPT_URL = "TU_URL_DE_APPS_SCRIPT_AQUÍ";
 
 let rawData = null, activeMes = "all";
 const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -452,6 +452,9 @@ function switchTab(id,btn) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
+  // Ocultar filtro de período en Cohortes (S3 usa siempre datos completos)
+  const fb = document.querySelector('.filter-bar');
+  if (fb) fb.style.display = id === 's3' ? 'none' : 'flex';
 }
 
 /* FILTROS */
@@ -574,7 +577,7 @@ function renderS1(d) {
   setLine(cCards,    cDF.map(r=>fmtD(r.date)),cDF.map(r=>r.count));
   setLine(cRecargas, rDF.map(r=>fmtD(r.date)),rDF.map(r=>r.total));
   const top=d.top10Ubicaciones||[]; setBarH(cUbicaciones,top.map(r=>trunc(r.ubicacion,24)),top.map(r=>r.count));
-  const hrs=d.recargasPorHora||[];  setLine(cHoras,hrs.map(r=>r.hora+":00"),hrs.map(r=>r.count));
+  const hrs=(d.recargasPorHora||[]).filter(r=>r.hora>=5&&r.hora<=23);  setLine(cHoras,hrs.map(r=>r.hora+":00"),hrs.map(r=>r.count));
   const tron=d.recargasPorTroncal||[]; setBarH(cTroncal,tron.map(r=>trunc(r.troncal,26)),tron.map(r=>r.count));
 }
 
