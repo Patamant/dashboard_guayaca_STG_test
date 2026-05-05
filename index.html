@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CardFlow Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
+:root{
+  --bg:#f5f7fa;--surface:#fff;--border:#e4e8f0;
+  --txt-1:#0f1b2d;--txt-2:#5a6880;
+  --blue:#1a6cf6;--teal:#00b8a9;--gold:#f5a623;
+  --pur:#7c3aed;--oran:#f97316;--red:#e11d48;--green:#059669;
+  --shadow-sm:0 2px 8px rgba(15,27,45,.07);
+  --shadow-md:0 8px 32px rgba(15,27,45,.11);
+  --r:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:36px;height:36px;flex-shrink:0;background:linear-gradient(135deg,var(--blue),var(--teal));border-radius:10px;display:flex;align-items:center;justify-content:center}
+.brand-logo svg{width:20px;height:20px;fill:#fff}
+.brand-name{font-family:'Sora',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em}
+.brand-name span{color:var(--blue)}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.last-upd{font-size:.74rem;color:var(--txt-2)}
+.last-upd strong{color:var(--txt-1)}
+.btn-refresh{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--blue),#0f4fd6);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(26,108,246,.3);transition:transform .15s,opacity .2s;white-space:nowrap}
+.btn-refresh:hover{transform:translateY(-2px)}
+.btn-refresh:active{transform:translateY(0)}
+.btn-refresh.loading{opacity:.7;pointer-events:none}
+.btn-refresh svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.btn-refresh.loading svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TABS */
+.tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;display:flex;gap:2px;position:sticky;top:55px;z-index:99;overflow-x:auto;scrollbar-width:none}
+.tabs-bar::-webkit-scrollbar{display:none}
+.tab-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 16px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:.86rem;font-weight:600;color:var(--txt-2);cursor:pointer;border-bottom:3px solid transparent;transition:color .2s,border-color .2s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
+.tab-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* FILTRO BAR */
+.filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:103px;z-index:98;box-shadow:0 1px 4px rgba(15,27,45,.04)}
+.filter-label{font-size:.75rem;font-weight:600;color:var(--txt-2);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-size:.78rem;font-weight:600;color:var(--txt-2);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.chip.all{font-weight:700}
+.filter-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+
+/* MAIN */
+.main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+.tab-section{display:none}
+.tab-section.active{display:block}
+
+/* SECTION HEADER */
+.sec-header{margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.sec-header-txt h2{font-family:'Sora',sans-serif;font-size:1.3rem;font-weight:800;letter-spacing:-.03em}
+.sec-header-txt p{color:var(--txt-2);font-size:.82rem;margin-top:3px}
+.filter-period-badge{display:inline-flex;align-items:center;gap:5px;background:#e8f0fe;color:var(--blue);border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700;white-space:nowrap}
+
+/* STATUS BANNER */
+#statusBanner{display:none;align-items:center;gap:10px;padding:11px 16px;border-radius:12px;font-size:.84rem;font-weight:500;margin-bottom:18px;animation:fadeIn .3s ease}
+#statusBanner.info{background:#e8f0fe;color:#1a56cb;border:1px solid #c3d6fc}
+#statusBanner.success{background:#e6faf6;color:#0a8a72;border:1px solid #a0dfd4}
+#statusBanner.error{background:#fdecea;color:#c0392b;border:1px solid #f5c6c2}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.kpi-grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:13px;transition:box-shadow .2s,transform .2s;animation:slideUp .4s ease both}
+.kpi-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.kpi-card.full{flex-direction:column;align-items:flex-start;gap:10px}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.kpi-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon svg{width:22px;height:22px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.kpi-icon.blue{background:#e8f0fe}.kpi-icon.blue svg{stroke:var(--blue)}
+.kpi-icon.teal{background:#e0faf7}.kpi-icon.teal svg{stroke:var(--teal)}
+.kpi-icon.gold{background:#fef6e4}.kpi-icon.gold svg{stroke:var(--gold)}
+.kpi-icon.pur{background:#f0ebff}.kpi-icon.pur svg{stroke:var(--pur)}
+.kpi-icon.oran{background:#fff3e8}.kpi-icon.oran svg{stroke:var(--oran)}
+.kpi-icon.red{background:#ffe4ea}.kpi-icon.red svg{stroke:var(--red)}
+.kpi-icon.green{background:#d1fae5}.kpi-icon.green svg{stroke:var(--green)}
+.kpi-info{flex:1;min-width:0}
+.kpi-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-2);margin-bottom:2px}
+.kpi-value{font-family:'Sora',sans-serif;font-size:1.65rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+.kpi-value.md{font-size:1.3rem}.kpi-value.sm{font-size:1.05rem}
+.kpi-badge{margin-top:4px;display:inline-block;font-size:.66rem;font-weight:600;padding:2px 7px;border-radius:20px}
+.kpi-badge.blue{background:#e8f0fe;color:var(--blue)}
+.kpi-badge.teal{background:#e0faf7;color:var(--teal)}
+.kpi-badge.gold{background:#fef6e4;color:var(--gold)}
+.kpi-badge.pur{background:#f0ebff;color:var(--pur)}
+.kpi-badge.green{background:#d1fae5;color:var(--green)}
+.kpi-badge.red{background:#ffe4ea;color:var(--red)}
+
+/* SPLIT KPI */
+.kpi-split{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow-sm);animation:slideUp .4s ease both}
+.kpi-split-title{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-2);margin-bottom:12px}
+.kpi-split-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi-split-item{text-align:center;padding:10px 8px;border-radius:10px}
+.kpi-split-item.enroll{background:#e8f0fe}
+.kpi-split-item.otras{background:#fef6e4}
+.kpi-split-val{font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:800}
+.kpi-split-item.enroll .kpi-split-val{color:var(--blue)}
+.kpi-split-item.otras .kpi-split-val{color:var(--gold)}
+.kpi-split-lbl{font-size:.66rem;font-weight:600;color:var(--txt-2);margin-top:3px}
+
+/* PROB BUCKETS */
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%;margin-top:8px}
+.prob-bucket{border-radius:8px;padding:7px;text-align:center}
+.prob-val{font-family:'Sora',sans-serif;font-size:.95rem;font-weight:800;line-height:1}
+.prob-lbl{font-size:.6rem;font-weight:600;color:var(--txt-2);margin-top:2px}
+.prob-pct{font-size:.66rem;font-weight:700;margin-top:1px}
+
+/* CHART PANELS */
+.cg2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.cg1{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px}
+.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-sm)}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap}
+.chl{display:flex;align-items:center;gap:9px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ct{font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700}
+.cs{font-size:.7rem;color:var(--txt-2);margin-top:1px}
+.cw{position:relative;height:200px}
+.cw.tall{height:245px}
+
+/* DIVIDER */
+.sec-divider{border:none;border-top:1px solid var(--border);margin:22px 0}
+.footer{text-align:center;margin-top:30px;font-size:.72rem;color:#b0bac8}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .cg2{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+}
+@media(max-width:600px){
+  .topbar{padding:8px 12px}
+  .last-upd{display:none}
+  .filter-bar{top:88px;padding:8px 12px}
+  .tabs-bar{top:48px}
+  .main{padding:14px 10px 40px}
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi-grid.cols-2{grid-template-columns:1fr}
+  .kpi-card{padding:13px}
+  .kpi-icon{width:38px;height:38px}
+  .kpi-value{font-size:1.35rem}
+  .kpi-value.md{font-size:1.1rem}
+  .cw{height:175px}
+  .cw.tall{height:210px}
+}
+@media(max-width:380px){
+  .kpi-grid{grid-template-columns:1fr}
+  .kpi-grid.cols-2{grid-template-columns:1fr}
+  .btn-refresh .btn-txt{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="brand">
+    <div class="brand-logo"><svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>
+    <span class="brand-name">Card<span>Flow</span> Analytics</span>
+  </div>
+  <div class="topbar-right">
+    <span class="last-upd" id="lastUpdate">—</span>
+    <button class="btn-refresh" id="btnRefresh" onclick="refreshAll()">
+      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      <span class="btn-txt">Actualizar Datos</span>
+    </button>
+  </div>
+</nav>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('s1',this)">
+    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    Tarjetas &amp; Recargas
+  </button>
+  <button class="tab-btn" onclick="switchTab('s2',this)">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Transaccionalidad y Usos
+  </button>
+</div>
+
+<!-- FILTRO BAR (sticky, bajo tabs) -->
+<div class="filter-bar">
+  <span class="filter-label">📅 Período:</span>
+  <div class="filter-chips" id="filterChips">
+    <button class="chip all active" onclick="applyFilter('all',this)">Totalidad</button>
+    <div class="filter-sep"></div>
+    <!-- Chips de meses se generan dinámicamente -->
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="main">
+  <div id="statusBanner"></div>
+
+  <!-- ══ SECCIÓN 1 ══ -->
+  <div id="s1" class="tab-section active">
+    <div class="sec-header">
+      <div class="sec-header-txt">
+        <h2>Tarjetas &amp; Recargas</h2>
+        <p>Indicadores de colocación y recarga — La Guayaca Financiera Enroll</p>
+      </div>
+      <div class="filter-period-badge" id="badge1">📊 Totalidad</div>
+    </div>
+
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon blue"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Tarjetas Entregadas Enroll</div><div class="kpi-value" id="k1Cards">—</div><span class="kpi-badge blue">Únicas · Activadas</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon green"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Tarjetas Enroll Recargadas</div><div class="kpi-value" id="k1EnrollRec">—</div><span class="kpi-badge green">Venta + Recarga</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon teal"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">TRX Recargas</div><div class="kpi-value" id="k1Trx">—</div><span class="kpi-badge teal">Total transacciones</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon gold"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Monto Total Recargas</div><div class="kpi-value md" id="k1Monto">—</div><span class="kpi-badge gold">Suma monetaria</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon pur"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Moda · Monto Recarga</div><div class="kpi-value md" id="k1Moda">—</div><span class="kpi-badge pur" id="k1ModaBadge">Valor más frecuente</span></div>
+      </div>
+    </section>
+
+    <section class="cg2">
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--blue)"></div><div><div class="ct">Colocación de Tarjetas por Día</div><div class="cs">Tarjetas únicas — Venta</div></div></div></div><div class="cw"><canvas id="cCards"></canvas></div></div>
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--teal)"></div><div><div class="ct">Recargas por Día</div><div class="cs">Monto total — Recarga</div></div></div></div><div class="cw"><canvas id="cRecargas"></canvas></div></div>
+    </section>
+    <section class="cg2">
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--oran)"></div><div><div class="ct">Top 10 Ubicaciones</div><div class="cs">Transacciones por punto — Recarga</div></div></div></div><div class="cw tall"><canvas id="cUbicaciones"></canvas></div></div>
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--pur)"></div><div><div class="ct">Recargas por Hora</div><div class="cs">Distribución 0–23h</div></div></div></div><div class="cw tall"><canvas id="cHoras"></canvas></div></div>
+    </section>
+    <section class="cg1">
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--red)"></div><div><div class="ct">Recargas por Troncal</div><div class="cs">Total transacciones por troncal — col A</div></div></div></div><div class="cw tall"><canvas id="cTroncal"></canvas></div></div>
+    </section>
+  </div>
+
+  <!-- ══ SECCIÓN 2 ══ -->
+  <div id="s2" class="tab-section">
+    <div class="sec-header">
+      <div class="sec-header-txt">
+        <h2>Transaccionalidad y Usos</h2>
+        <p>Indicadores de uso de tarjetas — Hoja USOS</p>
+      </div>
+      <div class="filter-period-badge" id="badge2">📊 Totalidad</div>
+    </div>
+
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon blue"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Tarjetas Utilizadas en el Periodo</div><div class="kpi-value" id="k2TarjUtiliz">—</div><span class="kpi-badge blue">Únicas · USOS col A</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon teal"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Total Usos</div><div class="kpi-value" id="k2TotalUsos">—</div><span class="kpi-badge teal">Registros del periodo</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon gold"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="kpi-info"><div class="kpi-label">Total Consumo Pasajes</div><div class="kpi-value md" id="k2Consumo">—</div><span class="kpi-badge gold">Suma monetaria</span></div>
+      </div>
+      <!-- Rango promedio (card full-width especial) -->
+      <div class="kpi-card full">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
+          <div class="kpi-icon pur"><svg viewBox="0 0 24 24" fill="none" stroke="var(--pur)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div><div class="kpi-label">Rango Promedio de Usos</div><div class="kpi-value sm" id="k2Promedio">—</div></div>
+        </div>
+        <div class="prob-grid">
+          <div class="prob-bucket" style="background:#e8f0fe"><div class="prob-val" id="pbv1" style="color:var(--blue)">—</div><div class="prob-lbl">1 día</div><div class="prob-pct" id="pbp1" style="color:var(--blue)">—%</div></div>
+          <div class="prob-bucket" style="background:#e0faf7"><div class="prob-val" id="pbv2" style="color:var(--teal)">—</div><div class="prob-lbl">Cada 2 días</div><div class="prob-pct" id="pbp2" style="color:var(--teal)">—%</div></div>
+          <div class="prob-bucket" style="background:#fef6e4"><div class="prob-val" id="pbv3" style="color:var(--gold)">—</div><div class="prob-lbl">Cada 3 días</div><div class="prob-pct" id="pbp3" style="color:var(--gold)">—%</div></div>
+          <div class="prob-bucket" style="background:#ffe4ea"><div class="prob-val" id="pbv4" style="color:var(--red)">—</div><div class="prob-lbl">+3 días</div><div class="prob-pct" id="pbp4" style="color:var(--red)">—%</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpi-grid cols-2">
+      <div class="kpi-split">
+        <div class="kpi-split-title">Estado Pago · Consumo Pasajes</div>
+        <div class="kpi-split-row">
+          <div class="kpi-split-item enroll"><div class="kpi-split-val" id="k2Cerrada">—</div><div class="kpi-split-lbl">Cerrada</div></div>
+          <div class="kpi-split-item otras"><div class="kpi-split-val" id="k2Abierta">—</div><div class="kpi-split-lbl">Abierta</div></div>
+        </div>
+      </div>
+      <div class="kpi-split">
+        <div class="kpi-split-title">Estructura Uso de Tarjetas</div>
+        <div class="kpi-split-row">
+          <div class="kpi-split-item enroll"><div class="kpi-split-val" id="k2Enroll">—</div><div class="kpi-split-lbl">APP STG · Enroll</div></div>
+          <div class="kpi-split-item otras"><div class="kpi-split-val" id="k2Otras">—</div><div class="kpi-split-lbl">Otras Campañas</div></div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="sec-divider"/>
+
+    <section class="cg2">
+      <div class="chart-panel">
+        <div class="ch">
+          <div class="chl"><div class="dot" style="background:var(--blue)"></div><div><div class="ct">Usos por Día</div><div class="cs">Enroll vs Otras Campañas</div></div></div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:.7rem;font-weight:600">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:var(--blue);display:inline-block"></span>Enroll</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:var(--gold);display:inline-block"></span>Otras</span>
+          </div>
+        </div>
+        <div class="cw tall"><canvas id="cUsosDia"></canvas></div>
+      </div>
+      <div class="chart-panel"><div class="ch"><div class="chl"><div class="dot" style="background:var(--teal)"></div><div><div class="ct">Distribución Usos por Hora</div><div class="cs">Total transacciones 0–23h</div></div></div></div><div class="cw tall"><canvas id="cUsosHora"></canvas></div></div>
+    </section>
+  </div>
+
+  <div class="footer">CardFlow Analytics by STG</div>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   ▶  CONFIGURACIÓN
+══════════════════════════════════════════════════════════ */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYONrJW5o5FKNeCebSwpoSJ2Q8VmDit4mm4fnncZCi7b7AeTJlKX1TsLS3k-aT5NNXww/exec";
+
+/* ══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════════════════ */
+let rawData   = null;   // datos completos del API (sin filtrar)
+let activeMes = "all";  // filtro activo: "all" | "2026-04" | etc.
+let cCards,cRecargas,cUbicaciones,cHoras,cTroncal,cUsosDia,cUsosHora;
+
+const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+/* ══════════════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════════════ */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILTROS POR MES
+══════════════════════════════════════════════════════════ */
+function buildFilterChips(meses) {
+  // meses: array de "yyyy-mm" únicos ordenados
+  const chips = document.getElementById("filterChips");
+  // Limpiar chips dinámicos (conservar "Totalidad" y separador)
+  chips.querySelectorAll(".chip:not(.all), .filter-sep").forEach(e => e.remove());
+
+  if (meses.length === 0) return;
+
+  const sep = document.createElement("div");
+  sep.className = "filter-sep";
+  chips.appendChild(sep);
+
+  meses.forEach(ym => {
+    const [y, m] = ym.split("-");
+    const label  = MESES_ES[parseInt(m)-1] + " " + y;
+    const btn    = document.createElement("button");
+    btn.className   = "chip";
+    btn.textContent = label;
+    btn.dataset.mes = ym;
+    btn.onclick     = () => applyFilter(ym, btn);
+    chips.appendChild(btn);
+  });
+}
+
+function applyFilter(mes, btnEl) {
+  activeMes = mes;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  btnEl.classList.add("active");
+
+  const label = mes === "all" ? "📊 Totalidad" : (() => {
+    const [y,m] = mes.split("-");
+    return "📅 " + MESES_ES[parseInt(m)-1] + " " + y;
+  })();
+  document.getElementById("badge1").textContent = label;
+  document.getElementById("badge2").textContent = label;
+
+  if (rawData) renderAll();
+}
+
+/* ══════════════════════════════════════════════════════════
+   FILTRAR DATOS POR MES
+══════════════════════════════════════════════════════════ */
+function filterByMes(arr, keyFn) {
+  if (activeMes === "all") return arr;
+  return arr.filter(r => keyFn(r).startsWith(activeMes));
+}
+
+// Extraer yyyy-mm de "yyyy-mm-dd"
+function toYM(date) { return date ? date.substring(0,7) : ""; }
+
+/* ══════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════ */
+document.addEventListener("DOMContentLoaded", () => { initCharts(); loadData(); });
+
+/* ══════════════════════════════════════════════════════════
+   REFRESH
+══════════════════════════════════════════════════════════ */
+async function refreshAll() {
+  const btn = document.getElementById("btnRefresh");
+  btn.classList.add("loading");
+  showBanner("info","⏳ Actualizando columnas en Google Sheets…");
+  try {
+    await apiFetch("updateSheet");
+    showBanner("info","✅ Columnas actualizadas. Cargando métricas…");
+    await loadData();
+    showBanner("success","🎉 Datos actualizados correctamente.");
+  } catch(err) {
+    showBanner("error","❌ Error: " + err.message);
+  } finally {
+    btn.classList.remove("loading");
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   LOAD DATA
+══════════════════════════════════════════════════════════ */
+async function loadData() {
+  try {
+    rawData = await apiFetch("getData");
+    // Extraer meses únicos de ambas secciones
+    const mesesSet = new Set();
+    (rawData.seccion1?.cardsByDay   ||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    (rawData.seccion1?.recargasByDay||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    (rawData.seccion2?.usosByDay    ||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    mesesSet.delete("");
+    buildFilterChips([...mesesSet].sort());
+    renderAll();
+    updateTimestamp(rawData.lastUpdated);
+  } catch(err) {
+    showBanner("error","❌ No se pudo cargar datos: " + err.message);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER GENERAL (aplica filtro activo)
+══════════════════════════════════════════════════════════ */
+function renderAll() {
+  if (!rawData) return;
+  renderS1(rawData.seccion1 || {});
+  renderS2(rawData.seccion2 || {});
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER SECCIÓN 1
+══════════════════════════════════════════════════════════ */
+function renderS1(d) {
+  // Filtrar series temporales por mes
+  const cardsDayF   = filterByMes(d.cardsByDay    ||[], r => r.date);
+  const recargasDayF= filterByMes(d.recargasByDay ||[], r => r.date);
+
+  // Recalcular KPIs filtrados
+  const tarjetasSet   = new Set();
+  const enrollRecSet  = new Set();
+  let   trxRec = 0, montoRec = 0;
+  const frecMap = {};
+
+  // Necesitamos los datos RAW por fila — usamos los arrays diarios para KPIs aproximados
+  // Para mes filtrado: usamos los datos de series (aproximación por día)
+  if (activeMes === "all") {
+    animNum("k1Cards",    d.tarjetasEntregadas  || 0);
+    animNum("k1EnrollRec",d.tarjetasEnrollRecarg|| 0);
+    animNum("k1Trx",      d.trxRecarga          || 0);
+    animNum("k1Monto",    d.montoTotalRecargas  || 0, true);
+    animNum("k1Moda",     d.modaMonto           || 0, true);
+    const b = document.getElementById("k1ModaBadge");
+    if (b && d.modaFrecuencia) b.textContent = `Repite ${d.modaFrecuencia} veces`;
+  } else {
+    // Filtro por mes: usar datos por día disponibles
+    const totalCards = cardsDayF.reduce((s,r) => s + r.count, 0);
+    const totalMonto = recargasDayF.reduce((s,r) => s + r.total, 0);
+    const totalTrx   = (d.recargasPorHora || []).reduce((s,r) => s + r.count, 0); // aproximación
+    animNum("k1Cards",    totalCards);
+    animNum("k1EnrollRec", d.tarjetasEnrollRecarg || 0);
+    animNum("k1Trx",      totalMonto > 0 ? (d.trxRecarga || 0) : 0);
+    animNum("k1Monto",    totalMonto, true);
+    animNum("k1Moda",     d.modaMonto || 0, true);
+  }
+
+  // Gráficas filtradas
+  setLine(cCards,    cardsDayF.map(r=>fmtD(r.date)),    cardsDayF.map(r=>r.count));
+  setLine(cRecargas, recargasDayF.map(r=>fmtD(r.date)), recargasDayF.map(r=>r.total));
+
+  // Ubicaciones y troncales: no tienen dimensión temporal → mostrar siempre completos
+  const top  = d.top10Ubicaciones  || [];
+  const tron = d.recargasPorTroncal|| [];
+  setBarH(cUbicaciones, top.map(r=>trunc(r.ubicacion,24)),  top.map(r=>r.count));
+  setBarH(cTroncal,     tron.map(r=>trunc(r.troncal,26)),   tron.map(r=>r.count));
+
+  // Horas: sin dimensión temporal → siempre completo
+  const hrs = d.recargasPorHora || [];
+  setLine(cHoras, hrs.map(r=>r.hora+":00"), hrs.map(r=>r.count));
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER SECCIÓN 2
+══════════════════════════════════════════════════════════ */
+function renderS2(d) {
+  const usosDayF = filterByMes(d.usosByDay || [], r => r.date);
+
+  if (activeMes === "all") {
+    animNum("k2TarjUtiliz", d.tarjetasUtilizadas || 0);
+    animNum("k2TotalUsos",  d.totalUsos          || 0);
+    animNum("k2Consumo",    d.totalConsumo       || 0, true);
+    animNum("k2Cerrada",    d.montoCerrada       || 0, true);
+    animNum("k2Abierta",    d.montoAbierta       || 0, true);
+    animNum("k2Enroll",     d.tarjetasEnroll     || 0);
+    animNum("k2Otras",      d.tarjetasOtras      || 0);
+  } else {
+    const totalUsosMes    = usosDayF.reduce((s,r) => s + r.total,  0);
+    const enrollMes       = usosDayF.reduce((s,r) => s + r.enroll, 0);
+    const otrasMes        = usosDayF.reduce((s,r) => s + r.otras,  0);
+    animNum("k2TarjUtiliz", d.tarjetasUtilizadas || 0);
+    animNum("k2TotalUsos",  totalUsosMes);
+    animNum("k2Consumo",    d.totalConsumo || 0, true);
+    animNum("k2Cerrada",    d.montoCerrada || 0, true);
+    animNum("k2Abierta",    d.montoAbierta || 0, true);
+    animNum("k2Enroll",     enrollMes);
+    animNum("k2Otras",      otrasMes);
+  }
+
+  // Rango promedio
+  setText("k2Promedio", d.rangoPromedio || "—");
+  const prob      = d.probabilidadUso || [];
+  const bucketIds = ["1 día","cada 2 días","cada 3 días","más de 3 días"];
+  bucketIds.forEach((rango, i) => {
+    const b = prob.find(p => p.rango === rango) || { count:0, pct:0 };
+    setText("pbv"+(i+1), b.count.toLocaleString("es-EC"));
+    setText("pbp"+(i+1), b.pct+"%");
+  });
+
+  // Gráfica usos por día filtrada
+  cUsosDia.data.labels            = usosDayF.map(r => fmtD(r.date));
+  cUsosDia.data.datasets[0].data  = usosDayF.map(r => r.enroll);
+  cUsosDia.data.datasets[1].data  = usosDayF.map(r => r.otras);
+  cUsosDia.update("active");
+
+  // Horas: siempre completo
+  const uhrs = d.usosByHour || [];
+  setLine(cUsosHora, uhrs.map(r=>r.hora+":00"), uhrs.map(r=>r.count));
+}
+
+/* ══════════════════════════════════════════════════════════
+   API
+══════════════════════════════════════════════════════════ */
+async function apiFetch(action) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("TU_URL"))
+    throw new Error("Configura APPS_SCRIPT_URL en el archivo index.html.");
+  const resp = await fetch(`${APPS_SCRIPT_URL}?action=${action}&t=${Date.now()}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+/* ══════════════════════════════════════════════════════════
+   INIT CHARTS
+══════════════════════════════════════════════════════════ */
+function baseOpts(tooltipCb, indexAxis) {
+  const o = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{
+      backgroundColor:"#0f1b2d",
+      titleFont:{family:"'DM Sans',sans-serif",size:11,weight:"600"},
+      bodyFont:{family:"'DM Sans',sans-serif",size:11},
+      padding:8, cornerRadius:8, callbacks:tooltipCb||{}
+    }},
+    scales:{
+      x:{ grid:{display:false}, ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#8a96a8",maxRotation:40} },
+      y:{ grid:{color:"#f0f2f6"}, ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#8a96a8"}, beginAtZero:true }
+    }
+  };
+  if (indexAxis) o.indexAxis = indexAxis;
+  return o;
+}
+
+function initCharts() {
+  cCards      = mkLine("cCards",       "#1a6cf6","rgba(26,108,246,.08)");
+  cRecargas   = mkLine("cRecargas",    "#00b8a9","rgba(0,184,169,.08)",
+                  {label:ctx=>" $"+Number(ctx.raw).toLocaleString("es-EC",{minimumFractionDigits:2})});
+  cUbicaciones= mkBarH("cUbicaciones", "rgba(249,115,22,.8)","#f97316");
+  cHoras      = mkLine("cHoras",       "#7c3aed","rgba(124,58,237,.08)");
+  cTroncal    = mkBarH("cTroncal",     "rgba(225,29,72,.75)","#e11d48");
+
+  cUsosDia = new Chart(document.getElementById("cUsosDia"),{
+    type:"bar",
+    data:{ labels:[], datasets:[
+      {label:"Enroll",data:[],backgroundColor:"rgba(26,108,246,.75)",borderRadius:4,borderSkipped:false},
+      {label:"Otras", data:[],backgroundColor:"rgba(245,166,35,.75)", borderRadius:4,borderSkipped:false}
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{backgroundColor:"#0f1b2d",padding:8,cornerRadius:8,
+          titleFont:{family:"'DM Sans',sans-serif",size:11,weight:"600"},
+          bodyFont:{family:"'DM Sans',sans-serif",size:11}}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#8a96a8",maxRotation:40}},
+        y:{stacked:true,grid:{color:"#f0f2f6"},ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#8a96a8"},beginAtZero:true}
+      }
+    }
+  });
+
+  cUsosHora = mkLine("cUsosHora","#059669","rgba(5,150,105,.08)");
+}
+
+function mkLine(id,color,bg,tooltipCb){
+  return new Chart(document.getElementById(id),{
+    type:"line",
+    data:{labels:[],datasets:[{data:[],fill:true,borderColor:color,backgroundColor:bg,
+      tension:.4,pointRadius:3,pointBackgroundColor:color,pointBorderColor:"#fff",pointBorderWidth:2}]},
+    options:baseOpts(tooltipCb)
+  });
+}
+function mkBarH(id,bg,border){
+  return new Chart(document.getElementById(id),{
+    type:"bar",
+    data:{labels:[],datasets:[{data:[],backgroundColor:bg,borderColor:border,
+      borderWidth:0,borderRadius:5,borderSkipped:false}]},
+    options:{
+      ...baseOpts({label:ctx=>` ${ctx.raw} transacciones`},"y"),
+      scales:{
+        x:{grid:{color:"#f0f2f6"},ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#8a96a8"},beginAtZero:true},
+        y:{grid:{display:false},ticks:{font:{family:"'DM Sans',sans-serif",size:9},color:"#5a6880"}}
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════ */
+function setLine(c,l,d){c.data.labels=l;c.data.datasets[0].data=d;c.update("active");}
+function setBarH(c,l,d){c.data.labels=l;c.data.datasets[0].data=d;c.update("active");}
+function animNum(id,target,isMoney=false){
+  const el=document.getElementById(id);if(!el)return;
+  const dur=700,t0=performance.now();
+  const fmt=v=>isMoney?"$"+Math.round(v).toLocaleString("es-EC",{minimumFractionDigits:2}):Math.round(v).toLocaleString("es-EC");
+  (function step(now){const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);el.textContent=fmt(e*target);if(p<1)requestAnimationFrame(step);})(t0);
+}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function fmtD(iso){if(!iso)return"";const[,m,d]=iso.split("-");return`${d}/${m}`;}
+function trunc(s,n){return s&&s.length>n?s.substring(0,n)+"…":s;}
+function updateTimestamp(iso){
+  const el=document.getElementById("lastUpdate");if(!iso||!el)return;
+  const d=new Date(iso);
+  el.innerHTML=`Actualizado: <strong>${d.toLocaleString("es-EC",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</strong>`;
+}
+function showBanner(type,msg){
+  const b=document.getElementById("statusBanner");
+  b.className=type;b.style.display="flex";b.textContent=msg;
+  if(type==="success")setTimeout(()=>{b.style.display="none"},5000);
+}
+</script>
+</body>
+</html>
