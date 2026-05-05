@@ -661,7 +661,7 @@ document.addEventListener("DOMContentLoaded",()=>{ initCharts(); loadData(); });
 /* REFRESH */
 async function refreshAll() {
   const btn=document.getElementById("btnRefresh"); btn.classList.add("loading");
-  showBanner("info","⏳ Actualizando Google Sheets…");
+  showBanner("info","⏳ Actualizando Data y Analítica…");
   try {
     await apiFetch("updateSheet");
     showBanner("info","✅ Columnas actualizadas. Cargando métricas…");
