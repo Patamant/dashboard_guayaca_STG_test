@@ -38,6 +38,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 .tab-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
 
+/* COMBO de navegación para móvil */
+.tabs-mobile{display:none;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;position:sticky;top:44px;z-index:99}
+.tabs-select{width:100%;padding:9px 14px;border:1.5px solid var(--blue);border-radius:10px;background:var(--surface);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;color:var(--txt-1);cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231a6cf6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+.tabs-select:focus{outline:none;box-shadow:0 0 0 3px rgba(26,108,246,.15)}
+
 /* FILTER BAR */
 .filter-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:103px;z-index:98}
 .filter-label{font-size:.72rem;font-weight:700;color:var(--txt-2);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
@@ -184,6 +189,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
    RESPONSIVE — MÓVIL  ≤ 600px
 ═══════════════════════════════════════════ */
 @media(max-width:600px){
+  /* Tabs desktop → ocultar; combo móvil → mostrar */
+  .tabs-bar{display:none !important}
+  .tabs-mobile{display:block}
+  .filter-bar{top:94px !important}
+
   /* Topbar compacto */
   .topbar{padding:8px 12px;gap:8px}
   .brand-name{font-size:.88rem}
@@ -330,6 +340,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
     <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     Cohortes &amp; Comportamiento
   </button>
+</div>
+
+<!-- NAVEGACIÓN MÓVIL (combo box) -->
+<div class="tabs-mobile">
+  <select class="tabs-select" id="tabsCombo" onchange="switchTabCombo(this.value)">
+    <option value="s1">📊 Tarjetas &amp; Recargas</option>
+    <option value="s2">📈 Transaccionalidad y Usos</option>
+    <option value="s3">👥 Cohortes &amp; Comportamiento</option>
+  </select>
 </div>
 
 <!-- FILTRO -->
@@ -579,21 +598,36 @@ const DIAS_ES  = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 let cCards,cRecargas,cUbicaciones,cHoras,cTroncal,cUsosDia,cUsosHora;
 let cMesTarj,cMesConsumo,cMesNuevasRec,cMesRetencion,cDistConsumo;
 
-/* TABS */
-function switchTab(id,btn) {
+/* TABS — función compartida desktop + móvil */
+function activateTab(id) {
   document.querySelectorAll('.tab-section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  btn.classList.add('active');
+  // Sincronizar combo móvil
+  const combo = document.getElementById('tabsCombo');
+  if (combo) combo.value = id;
   // Ocultar filtro de período en Cohortes (S3 usa siempre datos completos)
   const fb = document.querySelector('.filter-bar');
   if (fb) {
     const hide = id === 's3';
     fb.style.display = hide ? 'none' : 'flex';
-    // Ajustar padding-top del main para compensar la altura de la filter-bar
     const main = document.querySelector('.main');
     if (main) main.style.paddingTop = hide ? '20px' : '';
   }
+}
+
+function switchTab(id,btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  activateTab(id);
+}
+
+function switchTabCombo(id) {
+  // Sincronizar botones desktop
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const map = {s1:0, s2:1, s3:2};
+  const btns = document.querySelectorAll('.tab-btn');
+  if (btns[map[id]]) btns[map[id]].classList.add('active');
+  activateTab(id);
 }
 
 /* FILTROS */
@@ -627,12 +661,12 @@ document.addEventListener("DOMContentLoaded",()=>{ initCharts(); loadData(); });
 /* REFRESH */
 async function refreshAll() {
   const btn=document.getElementById("btnRefresh"); btn.classList.add("loading");
-  showBanner("info","⏳ Actualizando Data, esto puede tardar…");
+  showBanner("info","⏳ Actualizando Google Sheets…");
   try {
     await apiFetch("updateSheet");
     showBanner("info","✅ Columnas actualizadas. Cargando métricas…");
     await loadData();
-    showBanner("success","🎉 Datos actualizados correctamente - Qu@ntum BOT.");
+    showBanner("success","🎉 Datos actualizados correctamente.");
   } catch(err){ showBanner("error","❌ "+err.message); }
   finally{ btn.classList.remove("loading"); }
 }
