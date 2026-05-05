@@ -330,7 +330,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 /* ══════════════════════════════════════════════════════════
    ▶  CONFIGURACIÓN
 ══════════════════════════════════════════════════════════ */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9-eSbko3ANoT4ipzCEiGrH5Ar2llqyE8J8PWHOMnDGMXO2ZI0dhceZGs3DJQisp9VXw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxm-ZNFro3eg3UJLQwiCnIdTaNOFCd5vZAvnvYi4HjwfHUI4YuNuBUI6FbwA8HZFc6JFg/exec";
 
 /* ══════════════════════════════════════════════════════════
    ESTADO GLOBAL
@@ -434,12 +434,23 @@ async function refreshAll() {
 async function loadData() {
   try {
     rawData = await apiFetch("getData");
-    // Extraer meses únicos de ambas secciones
     const mesesSet = new Set();
-    (rawData.seccion1?.cardsByDay    ||[]).forEach(r => mesesSet.add(toYM(r.date)));
-    (rawData.seccion1?.recargasByDay ||[]).forEach(r => mesesSet.add(toYM(r.date)));
-    // S2: meses vienen directamente del backend
-    (rawData.seccion2?.meses || []).forEach(m => mesesSet.add(m));
+
+    // Sección 1: meses desde series temporales
+    (rawData.seccion1?.cardsByDay    ||[]).forEach(r => { if(r.date) mesesSet.add(toYM(r.date)); });
+    (rawData.seccion1?.recargasByDay ||[]).forEach(r => { if(r.date) mesesSet.add(toYM(r.date)); });
+
+    // Sección 2: meses desde backend (nuevo formato) o desde usosByDay (formato legado)
+    const s2raw = rawData.seccion2 || {};
+    if (s2raw.meses && s2raw.meses.length > 0) {
+      s2raw.meses.forEach(m => { if(m) mesesSet.add(m); });
+    } else if (s2raw.global && s2raw.global.usosByDay) {
+      s2raw.global.usosByDay.forEach(r => { if(r.date) mesesSet.add(toYM(r.date)); });
+    } else if (s2raw.usosByDay) {
+      // formato muy antiguo
+      s2raw.usosByDay.forEach(r => { if(r.date) mesesSet.add(toYM(r.date)); });
+    }
+
     mesesSet.delete("");
     buildFilterChips([...mesesSet].sort());
     renderAll();
@@ -455,12 +466,43 @@ async function loadData() {
 function renderAll() {
   if (!rawData) return;
   renderS1(rawData.seccion1 || {});
-  // S2: usar subset del mes seleccionado o global
-  const s2 = rawData.seccion2 || {};
-  const d2 = activeMes === "all"
-    ? (s2.global || {})
-    : (s2.porMes && s2.porMes[activeMes] ? s2.porMes[activeMes] : s2.global || {});
-  renderS2(d2);
+
+  // S2 — seleccionar datos correctos según formato del backend y filtro activo
+  const s2raw = rawData.seccion2 || {};
+  let d2;
+
+  if (s2raw.global && s2raw.porMes) {
+    // Formato NUEVO: { global, porMes, meses }
+    if (activeMes === "all") {
+      d2 = s2raw.global;
+    } else {
+      // Buscar el mes exacto; si no existe usar global
+      d2 = s2raw.porMes[activeMes] || s2raw.global;
+      // Debug: mostrar si el mes fue encontrado
+      if (!s2raw.porMes[activeMes]) {
+        console.warn("Mes no encontrado en porMes:", activeMes, "Meses disponibles:", Object.keys(s2raw.porMes));
+      }
+    }
+  } else {
+    // Formato LEGADO: filtrar manualmente desde usosByDay
+    d2 = recalcS2Legado(s2raw, activeMes);
+  }
+
+  renderS2(d2 || {});
+}
+
+// Recalcula métricas S2 desde formato antiguo del backend filtrando por mes
+function recalcS2Legado(s2, mes) {
+  if (mes === "all") return s2;
+  const diasFilt = (s2.usosByDay || []).filter(r => r.date && r.date.startsWith(mes));
+  return {
+    ...s2,
+    totalUsos          : diasFilt.reduce((a,r) => a + r.total,  0),
+    tarjetasEnroll     : diasFilt.reduce((a,r) => a + r.enroll, 0),
+    tarjetasOtras      : diasFilt.reduce((a,r) => a + r.otras,  0),
+    tarjetasUtilizadas : diasFilt.reduce((a,r) => a + r.total,  0),
+    usosByDay          : diasFilt
+  };
 }
 
 /* ══════════════════════════════════════════════════════════
