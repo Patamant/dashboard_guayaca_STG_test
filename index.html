@@ -330,7 +330,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 /* ══════════════════════════════════════════════════════════
    ▶  CONFIGURACIÓN
 ══════════════════════════════════════════════════════════ */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYONrJW5o5FKNeCebSwpoSJ2Q8VmDit4mm4fnncZCi7b7AeTJlKX1TsLS3k-aT5NNXww/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOvYKzieA5OO79us2dHlgf5SxtaC4WlLsCwFd03Jy53n7-9sW3VAND3rsAmfqRlKi7Iw/exec";
 
 /* ══════════════════════════════════════════════════════════
    ESTADO GLOBAL
@@ -436,9 +436,10 @@ async function loadData() {
     rawData = await apiFetch("getData");
     // Extraer meses únicos de ambas secciones
     const mesesSet = new Set();
-    (rawData.seccion1?.cardsByDay   ||[]).forEach(r => mesesSet.add(toYM(r.date)));
-    (rawData.seccion1?.recargasByDay||[]).forEach(r => mesesSet.add(toYM(r.date)));
-    (rawData.seccion2?.usosByDay    ||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    (rawData.seccion1?.cardsByDay    ||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    (rawData.seccion1?.recargasByDay ||[]).forEach(r => mesesSet.add(toYM(r.date)));
+    // S2: meses vienen directamente del backend
+    (rawData.seccion2?.meses || []).forEach(m => mesesSet.add(m));
     mesesSet.delete("");
     buildFilterChips([...mesesSet].sort());
     renderAll();
@@ -454,7 +455,12 @@ async function loadData() {
 function renderAll() {
   if (!rawData) return;
   renderS1(rawData.seccion1 || {});
-  renderS2(rawData.seccion2 || {});
+  // S2: usar subset del mes seleccionado o global
+  const s2 = rawData.seccion2 || {};
+  const d2 = activeMes === "all"
+    ? (s2.global || {})
+    : (s2.porMes && s2.porMes[activeMes] ? s2.porMes[activeMes] : s2.global || {});
+  renderS2(d2);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -512,30 +518,16 @@ function renderS1(d) {
    RENDER SECCIÓN 2
 ══════════════════════════════════════════════════════════ */
 function renderS2(d) {
-  const usosDayF = filterByMes(d.usosByDay || [], r => r.date);
+  // d ya viene filtrado por mes (o global) desde renderAll
+  animNum("k2TarjUtiliz", d.tarjetasUtilizadas || 0);
+  animNum("k2TotalUsos",  d.totalUsos          || 0);
+  animNum("k2Consumo",    d.totalConsumo       || 0, true);
+  animNum("k2Cerrada",    d.montoCerrada       || 0, true);
+  animNum("k2Abierta",    d.montoAbierta       || 0, true);
+  animNum("k2Enroll",     d.tarjetasEnroll     || 0);
+  animNum("k2Otras",      d.tarjetasOtras      || 0);
 
-  if (activeMes === "all") {
-    animNum("k2TarjUtiliz", d.tarjetasUtilizadas || 0);
-    animNum("k2TotalUsos",  d.totalUsos          || 0);
-    animNum("k2Consumo",    d.totalConsumo       || 0, true);
-    animNum("k2Cerrada",    d.montoCerrada       || 0, true);
-    animNum("k2Abierta",    d.montoAbierta       || 0, true);
-    animNum("k2Enroll",     d.tarjetasEnroll     || 0);
-    animNum("k2Otras",      d.tarjetasOtras      || 0);
-  } else {
-    const totalUsosMes    = usosDayF.reduce((s,r) => s + r.total,  0);
-    const enrollMes       = usosDayF.reduce((s,r) => s + r.enroll, 0);
-    const otrasMes        = usosDayF.reduce((s,r) => s + r.otras,  0);
-    animNum("k2TarjUtiliz", d.tarjetasUtilizadas || 0);
-    animNum("k2TotalUsos",  totalUsosMes);
-    animNum("k2Consumo",    d.totalConsumo || 0, true);
-    animNum("k2Cerrada",    d.montoCerrada || 0, true);
-    animNum("k2Abierta",    d.montoAbierta || 0, true);
-    animNum("k2Enroll",     enrollMes);
-    animNum("k2Otras",      otrasMes);
-  }
-
-  // Rango promedio
+  // Rango promedio de usos
   setText("k2Promedio", d.rangoPromedio || "—");
   const prob      = d.probabilidadUso || [];
   const bucketIds = ["1 día","cada 2 días","cada 3 días","más de 3 días"];
@@ -545,13 +537,14 @@ function renderS2(d) {
     setText("pbp"+(i+1), b.pct+"%");
   });
 
-  // Gráfica usos por día filtrada
-  cUsosDia.data.labels            = usosDayF.map(r => fmtD(r.date));
-  cUsosDia.data.datasets[0].data  = usosDayF.map(r => r.enroll);
-  cUsosDia.data.datasets[1].data  = usosDayF.map(r => r.otras);
+  // Gráfica usos por día
+  const dias = d.usosByDay || [];
+  cUsosDia.data.labels           = dias.map(r => fmtD(r.date));
+  cUsosDia.data.datasets[0].data = dias.map(r => r.enroll);
+  cUsosDia.data.datasets[1].data = dias.map(r => r.otras);
   cUsosDia.update("active");
 
-  // Horas: siempre completo
+  // Distribución por hora
   const uhrs = d.usosByHour || [];
   setLine(cUsosHora, uhrs.map(r=>r.hora+":00"), uhrs.map(r=>r.count));
 }
