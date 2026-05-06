@@ -404,7 +404,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
     <section class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-icon teal"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
-        <div class="kpi-info"><div class="kpi-label">TRX Recargas</div><div class="kpi-value" id="k1Trx">—</div><span class="kpi-badge teal">Total transacciones</span></div>
+        <div class="kpi-info"><div class="kpi-label">TRX Recargas Enroll</div><div class="kpi-value" id="k1Trx">—</div><span class="kpi-badge teal">Recargas · Tarjetas Enroll</span></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-icon gold"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
@@ -589,7 +589,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 </main>
 
 <script>
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxJwD7Vwbiy9An1hMFBIBiBOsXt4dk38ehiG_u6iG-7HjdTGnWtsuXxDPLGASS4E2qjQ/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbydpb1L2aL9OzF4WGb-ajSf5i7-aNci4-n5Y0K8wrFMa82UB23N6zxtCAC58oYXOsfHdA/exec";
 
 let rawData = null, activeMes = "all";
 const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -661,10 +661,10 @@ document.addEventListener("DOMContentLoaded",()=>{ initCharts(); loadData(); });
 /* REFRESH */
 async function refreshAll() {
   const btn=document.getElementById("btnRefresh"); btn.classList.add("loading");
-  showBanner("info","⏳ Actualizando Google Sheets…");
+  showBanner("info","⏳ Actualizando Data…");
   try {
     await apiFetch("updateSheet");
-    showBanner("info","✅ Columnas actualizadas. Cargando métricas…");
+    showBanner("info","✅ Columnas actualizadas. Cargando métricas y analítica…");
     await loadData();
     showBanner("success","🎉 Datos actualizados correctamente.");
   } catch(err){ showBanner("error","❌ "+err.message); }
@@ -728,7 +728,9 @@ function renderS1(d) {
     ? (d.tarjetasEnrollRecarg || 0)
     : ((d.enrollRecargadosPorMes && d.enrollRecargadosPorMes[activeMes]) || 0);
   animNum("k1EnrollRec", enrollRecMes);
-  animNum("k1Trx",      activeMes==="all"?d.trxRecarga:0);
+  animNum("k1Trx", activeMes === "all"
+    ? (d.trxEnroll || 0)
+    : ((d.trxEnrollPorMes && d.trxEnrollPorMes[activeMes]) || 0));
   animNum("k1Monto",    activeMes==="all"?d.montoTotalRecargas:rDF.reduce((a,r)=>a+r.total,0),true);
   animNum("k1Moda",     d.modaMonto||0,true);
   const b=document.getElementById("k1ModaBadge"); if(b&&d.modaFrecuencia)b.textContent=`Repite ${d.modaFrecuencia} veces`;
