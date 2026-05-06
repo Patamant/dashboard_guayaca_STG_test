@@ -589,7 +589,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 </main>
 
 <script>
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyn__8QoazCkGohRhiroOpgx4gQ3D54_vmCfzRkXl3KB-nr8T59zc5DRZBVrt_5ZdVjrA/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxJwD7Vwbiy9An1hMFBIBiBOsXt4dk38ehiG_u6iG-7HjdTGnWtsuXxDPLGASS4E2qjQ/exec";
 
 let rawData = null, activeMes = "all";
 const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -661,7 +661,7 @@ document.addEventListener("DOMContentLoaded",()=>{ initCharts(); loadData(); });
 /* REFRESH */
 async function refreshAll() {
   const btn=document.getElementById("btnRefresh"); btn.classList.add("loading");
-  showBanner("info","⏳ Actualizando Data y Analítica…");
+  showBanner("info","⏳ Actualizando Google Sheets…");
   try {
     await apiFetch("updateSheet");
     showBanner("info","✅ Columnas actualizadas. Cargando métricas…");
@@ -723,7 +723,11 @@ function renderS1(d) {
   const rDF=filterByMes(d.recargasByDay||[],r=>r.date);
 
   animNum("k1Cards",    activeMes==="all"?d.tarjetasEntregadas:cDF.reduce((a,r)=>a+r.count,0));
-  animNum("k1EnrollRec",d.tarjetasEnrollRecarg||0);
+  // EnrollRecargadas: global o valor exacto del mes desde el desglose del backend
+  const enrollRecMes = activeMes === "all"
+    ? (d.tarjetasEnrollRecarg || 0)
+    : ((d.enrollRecargadosPorMes && d.enrollRecargadosPorMes[activeMes]) || 0);
+  animNum("k1EnrollRec", enrollRecMes);
   animNum("k1Trx",      activeMes==="all"?d.trxRecarga:0);
   animNum("k1Monto",    activeMes==="all"?d.montoTotalRecargas:rDF.reduce((a,r)=>a+r.total,0),true);
   animNum("k1Moda",     d.modaMonto||0,true);
