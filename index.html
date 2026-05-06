@@ -70,6 +70,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt-1);mi
 #statusBanner.info{background:#e8f0fe;color:#1a56cb;border:1px solid #c3d6fc}
 #statusBanner.success{background:#e6faf6;color:#0a8a72;border:1px solid #a0dfd4}
 #statusBanner.error{background:#fdecea;color:#c0392b;border:1px solid #f5c6c2}
+#statusBanner.loading{background:#fff8e8;color:#92600a;border:1px solid #f5dfa0;font-weight:600}
+#statusBanner.loading::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid #f5a623;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;flex-shrink:0}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
 /* KPI GRID */
@@ -656,36 +658,66 @@ function applyFilter(mes,btnEl) {
 function toYM(d){ return d?d.substring(0,7):""; }
 
 /* INIT */
-document.addEventListener("DOMContentLoaded",()=>{ initCharts(); loadData(); });
+document.addEventListener("DOMContentLoaded", () => {
+  initCharts();
+  autoLoad(); // carga inicial con mensaje
+});
 
-/* REFRESH */
-async function refreshAll() {
-  const btn=document.getElementById("btnRefresh"); btn.classList.add("loading");
-  showBanner("info","⏳ Actualizando Data…");
-  try {
-    await apiFetch("updateSheet");
-    showBanner("info","✅ Columnas actualizadas. Cargando métricas y analítica…");
-    await loadData();
-    showBanner("success","🎉 Datos actualizados correctamente.");
-  } catch(err){ showBanner("error","❌ "+err.message); }
-  finally{ btn.classList.remove("loading"); }
-}
+// ── Recarga automática al volver a la pestaña / app ────────────
+// Cubre: bloqueo de pantalla, cambio de app, pestaña en background
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") autoLoad();
+});
 
-/* LOAD */
-async function loadData() {
+// Cubre: navegación hacia atrás en móvil (bfcache)
+window.addEventListener("pageshow", (e) => {
+  if (e.persisted) autoLoad();
+});
+
+// ── Carga automática con mensaje ───────────────────────────────
+async function autoLoad() {
+  showBanner("loading", "⏳ Estamos actualizando la información...");
+  const btn = document.getElementById("btnRefresh");
+  if (btn) btn.classList.add("loading");
   try {
-    rawData=await apiFetch("getData");
-    const mS=new Set();
-    (rawData.seccion1?.cardsByDay||[]).forEach(r=>{ if(r.date)mS.add(toYM(r.date)); });
-    (rawData.seccion1?.recargasByDay||[]).forEach(r=>{ if(r.date)mS.add(toYM(r.date)); });
-    const s2r=rawData.seccion2||{};
-    if (s2r.meses?.length) s2r.meses.forEach(m=>{ if(m)mS.add(m); });
-    else if (s2r.global?.usosByDay) s2r.global.usosByDay.forEach(r=>{ if(r.date)mS.add(toYM(r.date)); });
+    rawData = await apiFetch("getData");
+    const mS = new Set();
+    (rawData.seccion1?.cardsByDay    ||[]).forEach(r=>{ if(r.date) mS.add(toYM(r.date)); });
+    (rawData.seccion1?.recargasByDay ||[]).forEach(r=>{ if(r.date) mS.add(toYM(r.date)); });
+    const s2r = rawData.seccion2 || {};
+    if (s2r.meses?.length) s2r.meses.forEach(m=>{ if(m) mS.add(m); });
+    else if (s2r.global?.usosByDay) s2r.global.usosByDay.forEach(r=>{ if(r.date) mS.add(toYM(r.date)); });
     mS.delete("");
     buildFilterChips([...mS].sort());
     renderAll();
     updateTimestamp(rawData.lastUpdated);
-  } catch(err){ showBanner("error","❌ "+err.message); }
+    showBanner("success", "✅ Información actualizada correctamente.");
+  } catch(err) {
+    showBanner("error", "❌ No se pudo cargar la información: " + err.message);
+  } finally {
+    if (btn) btn.classList.remove("loading");
+  }
+}
+
+/* REFRESH */
+async function refreshAll() {
+  const btn = document.getElementById("btnRefresh");
+  btn.classList.add("loading");
+  showBanner("loading", "⏳ Estamos actualizando la información...");
+  try {
+    await apiFetch("updateSheet");
+    showBanner("loading", "⏳ Columnas actualizadas. Cargando métricas...");
+    await autoLoad();
+  } catch(err) {
+    showBanner("error", "❌ " + err.message);
+    btn.classList.remove("loading");
+  }
+  // btn se quita en autoLoad finally
+}
+
+/* LOAD */
+async function loadData() {
+  await autoLoad(); // delegar en autoLoad (muestra mensaje y maneja errores)
 }
 
 /* API */
@@ -897,7 +929,14 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 function fmtD(iso){if(!iso)return"";const[,m,d]=iso.split("-");return`${d}/${m}`;}
 function trunc(s,n){return s&&s.length>n?s.substring(0,n)+"…":s;}
 function updateTimestamp(iso){const el=document.getElementById("lastUpdate");if(!iso||!el)return;const d=new Date(iso);el.innerHTML=`Actualizado: <strong>${d.toLocaleString("es-EC",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</strong>`;}
-function showBanner(type,msg){const b=document.getElementById("statusBanner");b.className=type;b.style.display="flex";b.textContent=msg;if(type==="success")setTimeout(()=>{b.style.display="none"},5000);}
+function showBanner(type, msg) {
+  const b = document.getElementById("statusBanner");
+  b.className    = type;
+  b.style.display = "flex";
+  b.textContent  = msg;
+  // "loading" se queda visible hasta que se reemplace; success se cierra solo
+  if (type === "success") setTimeout(() => { b.style.display = "none"; }, 4000);
+}
 </script>
 </body>
 </html>
